@@ -9,7 +9,7 @@
     "test-app:run": "cd ./test/test-graphql-app && SKIP_PREFLIGHT_CHECK=true yarn start",
     "test-app:build": "cd ./test/test-graphql-app && SKIP_PREFLIGHT_CHECK=true yarn build",
     "test-app:serve": "serve -s -l 3000 test/test-graphql-app/build",
-    "prepublish": "tsc --declarationMap"
+    "prepare": "tsc --declarationMap"
   },
   "main": "dist",
   "types": "dist/index.d.ts",
