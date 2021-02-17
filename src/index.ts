@@ -208,5 +208,15 @@ function getRootValue<AllOperations>(
     }
   }
 
+  if (Array.isArray(op)) {
+    if (op.length > 0) {
+      return op.shift();
+    } else {
+      throw Error(
+        `No more stubs for the operation "${operationName}"! Check your stubs array for this operation.`
+      );
+    }
+  }
+
   return op;
 }
