@@ -100,60 +100,41 @@ Cypress.Commands.add(
     let currentDelay = delay;
     let currentOps = operations;
 
-    cy.on("window:before:load", win => {
-      const originalFetch = win.fetch;
-      function fetch(input: RequestInfo, init?: RequestInit) {
-        if (typeof input !== "string") {
-          throw new Error(
-            "Currently only support fetch(url, options), saw fetch(Request)"
-          );
-        }
-        if (input.indexOf(endpoint) !== -1 && init && init.method === "POST") {
-          const payload: GQLRequestPayload<AllOperations> = JSON.parse(
-            init.body as string
-          );
-          const { operationName, query, variables } = payload;
-          const rootValue = getRootValue<AllOperations>(
-            currentOps,
-            operationName,
-            variables
-          );
+    cy.intercept({
+      url: endpoint,
+      method: 'POST',
+    }, async (req: any) => {
+      const { operationName, query, variables } = req.body as GQLRequestPayload<AllOperations>;
+      const rootValue = getRootValue<AllOperations>(
+        currentOps,
+        operationName,
+        variables
+      );
 
-          if (
-            // Additional checks here because of transpilation.
-            // We will loose instanceof if we are not using specific babel plugin, or using pure TS to compile front-end
-            rootValue instanceof GraphQLError ||
-            rootValue.constructor === GraphQLError ||
-            rootValue.constructor.name === "GraphQLError"
-          ) {
-            return Promise.resolve()
-              .then(wait(currentDelay))
-              .then(
-                () =>
-                  new Response(
-                    JSON.stringify({
-                      data: {},
-                      errors: [rootValue]
-                    })
-                  )
-              );
-          }
-
-          return graphql({
-            schema,
-            source: query,
-            variableValues: variables,
-            operationName,
-            rootValue
-          })
-            .then(wait(currentDelay))
-            .then((data: any) => new Response(JSON.stringify(data)));
-        }
-        return originalFetch(input, init);
+      await wait(currentDelay);
+      if (
+        // Additional checks here because of transpilation.
+        // We will loose instanceof if we are not using specific babel plugin, or using pure TS to compile front-end
+        rootValue instanceof GraphQLError ||
+        rootValue.constructor === GraphQLError ||
+        rootValue.constructor.name === "GraphQLError"
+      ) {
+        req.reply({
+          data: {},
+          errors: [rootValue]
+        });
       }
-      cy.stub(win, "fetch", fetch).as("fetchStub");
+
+      const data = await graphql({
+        schema,
+        source: query,
+        variableValues: variables,
+        operationName,
+        rootValue: rootValue.data
+      });
+      req.reply(data);
     });
-    //
+    
     cy.wrap({
       setOperations: (options: SetOperationsOpts<AllOperations>) => {
         currentDelay = options.delay || 0;
